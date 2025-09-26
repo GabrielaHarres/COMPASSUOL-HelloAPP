@@ -1,0 +1,61 @@
+name: CI/CD - Build, Push, Update Manifests
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/hello-app
+
+jobs:
+  build_and_push:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.set_tag.outputs.IMAGE_TAG }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: set_tag
+        run: echo "IMAGE_TAG=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.set_tag.outputs.image_tag }}
+          file: ./Dockerfile
+
+  update_manifests:
+    needs: build_and_push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH for pushing to manifests repo
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Clone manifests repo
+        run: |
+          git clone git@github.com:GabrielaHarres/hello-manifests.git manifests
+          cd manifests
+          git checkout -b update-image-${{ needs.build_and_push.outputs.image_tag }}
+
+      - name: Update deployment image tag
+        run: |
+          cd manifests
+          TAG=${{ needs.build_and_push.outputs.image_tag }}
+          IMAGE="${{ env.IMAGE_NAME }}:${TAG}"
+          sed -i "s|image: .*|image: ${IMAGE}|g" k8s/deployment.yaml
+          git add k8s/deployment.yaml
+          git commit -m "ci: update image -> ${IMAGE}" || echo "no changes to commit"
+          git push origin HEAD
