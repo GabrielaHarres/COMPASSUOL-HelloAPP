@@ -91,3 +91,18 @@ Usar kubectl port-forward para acessar via navegador:
 👉 http://localhost:8080/
 
 Alterar a mensagem em main.py e verificar se o CI/CD atualiza a imagem no Kubernetes automaticamente.
+
+### IMAGENS QUE DEVEM APARECER
+
+Se rodou certo:
+
+<img width="414" height="144" alt="Captura de tela 2025-09-26 170830" src="https://github.com/user-attachments/assets/a48f88ca-f428-4f4d-b137-676a852cd45a" />
+
+
+
+ArgoCD:
+
+
+<img width="1635" height="537" alt="image" src="https://github.com/user-attachments/assets/8ba3d28d-300e-46b5-8882-9af6bcf29e8e" />
+
+
